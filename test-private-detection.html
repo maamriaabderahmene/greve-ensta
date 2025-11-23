@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Mode Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .result {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .private {
+            background: #fee;
+            color: #c00;
+            border: 2px solid #c00;
+        }
+        .normal {
+            background: #efe;
+            color: #060;
+            border: 2px solid #060;
+        }
+        .method {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-left: 4px solid #ddd;
+        }
+        .method.detected {
+            border-left-color: #c00;
+            background: #fee;
+        }
+        .method.clear {
+            border-left-color: #060;
+            background: #efe;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔒 Private Browsing Detection Test</h1>
+    <p>This standalone test will check if you're in private/incognito mode using the same methods as the attendance system.</p>
+    
+    <button onclick="runTest()">Run Detection Test</button>
+    
+    <div id="results"></div>
+
+    <script>
+        async function runTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Running detection tests...</p>';
+            
+            const results = [];
+            const methods = [];
+
+            // Method 1: IndexedDB
+            try {
+                const detectIndexedDB = () => {
+                    return new Promise((resolve) => {
+                        if (!window.indexedDB) {
+                            resolve(true);
+                            return;
+                        }
+                        const testDB = 'test_' + Date.now();
+                        try {
+                            const request = indexedDB.open(testDB);
+                            request.onerror = () => resolve(true);
+                            request.onsuccess = (event) => {
+                                event.target.result.close();
+                                indexedDB.deleteDatabase(testDB);
+                                resolve(false);
+                            };
+                            setTimeout(() => resolve(true), 2000);
+                        } catch (e) {
+                            resolve(true);
+                        }
+                    });
+                };
+                const indexedDBResult = await detectIndexedDB();
+                results.push(indexedDBResult);
+                methods.push({
+                    name: 'IndexedDB',
+                    result: indexedDBResult,
+                    message: indexedDBResult ? '❌ Failed (Private Mode)' : '✅ Works (Normal Mode)'
+                });
+            } catch (e) {
+                results.push(true);
+                methods.push({name: 'IndexedDB', result: true, message: '❌ Error'});
+            }
+
+            // Method 2: Storage Quota
+            try {
+                if ('storage' in navigator && 'estimate' in navigator.storage) {
+                    const estimate = await navigator.storage.estimate();
+                    const quota = estimate.quota || 0;
+                    const isPrivate = quota < 10000000;
+                    results.push(isPrivate);
+                    methods.push({
+                        name: 'Storage Quota',
+                        result: isPrivate,
+                        message: `${isPrivate ? '❌' : '✅'} Quota: ${(quota / 1024 / 1024).toFixed(2)} MB ${isPrivate ? '(Private)' : '(Normal)'}`
+                    });
+                } else {
+                    results.push(false);
+                    methods.push({name: 'Storage Quota', result: false, message: '⚠️ Not Supported'});
+                }
+            } catch (e) {
+                results.push(false);
+                methods.push({name: 'Storage Quota', result: false, message: '❌ Error'});
+            }
+
+            // Method 3: LocalStorage
+            try {
+                const testKey = 'test_' + Date.now();
+                localStorage.setItem(testKey, 'test');
+                const retrieved = localStorage.getItem(testKey);
+                localStorage.removeItem(testKey);
+                const isPrivate = retrieved !== 'test';
+                results.push(isPrivate);
+                methods.push({
+                    name: 'LocalStorage',
+                    result: isPrivate,
+                    message: isPrivate ? '❌ Blocked (Private Mode)' : '✅ Works (Normal Mode)'
+                });
+            } catch (e) {
+                results.push(true);
+                methods.push({name: 'LocalStorage', result: true, message: '❌ Blocked'});
+            }
+
+            // Method 4: SessionStorage
+            try {
+                const testKey = 'test_' + Date.now();
+                sessionStorage.setItem(testKey, 'test');
+                const retrieved = sessionStorage.getItem(testKey);
+                sessionStorage.removeItem(testKey);
+                const isPrivate = retrieved !== 'test';
+                results.push(isPrivate);
+                methods.push({
+                    name: 'SessionStorage',
+                    result: isPrivate,
+                    message: isPrivate ? '❌ Blocked (Private Mode)' : '✅ Works (Normal Mode)'
+                });
+            } catch (e) {
+                results.push(true);
+                methods.push({name: 'SessionStorage', result: true, message: '❌ Blocked'});
+            }
+
+            // Calculate final result
+            const privateCount = results.filter(r => r === true).length;
+            const isPrivate = privateCount >= 2;
+
+            // Display results
+            let html = `
+                <div class="result ${isPrivate ? 'private' : 'normal'}">
+                    ${isPrivate ? '🚫 PRIVATE BROWSING DETECTED' : '✅ NORMAL BROWSING MODE'}
+                </div>
+                <h3>Detection Details:</h3>
+                <p><strong>${privateCount} out of ${results.length}</strong> methods detected private mode</p>
+                <p><strong>Threshold:</strong> 2 or more detections = Private Mode</p>
+            `;
+
+            methods.forEach(method => {
+                html += `
+                    <div class="method ${method.result ? 'detected' : 'clear'}">
+                        <strong>${method.name}:</strong> ${method.message}
+                    </div>
+                `;
+            });
+
+            html += `
+                <h3>Instructions:</h3>
+                <ul>
+                    <li><strong>Normal Browser:</strong> Should show "✅ NORMAL BROWSING MODE" with most methods showing ✅</li>
+                    <li><strong>Incognito/Private:</strong> Should show "🚫 PRIVATE BROWSING DETECTED" with 2+ methods showing ❌</li>
+                </ul>
+                <p><strong>Test in both modes and compare results!</strong></p>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
