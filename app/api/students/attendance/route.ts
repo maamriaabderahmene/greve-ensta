@@ -57,12 +57,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if session is enabled by admin
+    // If SessionControl doesn't exist for this session, assume it's enabled (backward compatibility)
     const sessionControl = await SessionControl.findOne({ session: currentSession });
     if (sessionControl && !sessionControl.isEnabled) {
       return NextResponse.json(
         { error: 'Attendance marking is currently disabled for this session by the administrator.' },
         { status: 403 }
       );
+    }
+    
+    // If sessionControl doesn't exist for this session, create it as enabled (auto-migration)
+    if (!sessionControl) {
+      try {
+        await SessionControl.create({
+          session: currentSession,
+          isEnabled: true,
+          updatedBy: 'auto-migration',
+          updatedAt: new Date()
+        });
+      } catch (err) {
+        // Ignore duplicate key errors (race condition)
+        console.log('SessionControl auto-creation:', err);
+      }
     }
 
     // Get client IP address

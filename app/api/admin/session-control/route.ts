@@ -9,16 +9,31 @@ export async function GET() {
   try {
     await connectDB();
 
-    // Get all sessions
+    const allSessions: AttendanceSession[] = ['session0', 'session1', 'session2', 'session3', 'session4'];
+    
+    // Get all existing sessions
     const sessions = await SessionControl.find({}).sort({ session: 1 });
 
     // If no sessions exist, create default ones (all enabled)
     if (sessions.length === 0) {
-      const defaultSessions: AttendanceSession[] = ['session0', 'session1', 'session2', 'session3', 'session4'];
       const created = await SessionControl.insertMany(
-        defaultSessions.map(s => ({ session: s, isEnabled: true }))
+        allSessions.map(s => ({ session: s, isEnabled: true, updatedBy: 'system-init' }))
       );
       return NextResponse.json({ sessions: created }, { status: 200 });
+    }
+
+    // Check if all sessions exist (for backward compatibility)
+    const existingSessionIds = sessions.map(s => s.session);
+    const missingSessions = allSessions.filter(s => !existingSessionIds.includes(s));
+    
+    if (missingSessions.length > 0) {
+      // Create missing sessions
+      const newSessions = await SessionControl.insertMany(
+        missingSessions.map(s => ({ session: s, isEnabled: true, updatedBy: 'auto-migration' }))
+      );
+      // Return all sessions (existing + newly created)
+      const allSessionsData = [...sessions, ...newSessions];
+      return NextResponse.json({ sessions: allSessionsData }, { status: 200 });
     }
 
     return NextResponse.json({ sessions }, { status: 200 });
