@@ -32,18 +32,23 @@ const AttendanceRecordSchema = new Schema({
   },
   session: {
     type: String,
-    enum: ['session0', 'session1', 'session2', 'session3', 'session4'],
+    enum: {
+      values: ['session0', 'session1', 'session2', 'session3', 'session4'],
+      message: '{VALUE} is not a valid session'
+    },
     required: false, // Changed to false for backward compatibility with old records
     default: 'session4' // Default to session4 for old records without session
   },
   location: {
     lat: {
       type: Number,
-      required: true
+      required: false, // Made optional for admin-added records
+      default: 0
     },
     lng: {
       type: Number,
-      required: true
+      required: false, // Made optional for admin-added records
+      default: 0
     }
   },
   verified: {
@@ -52,7 +57,8 @@ const AttendanceRecordSchema = new Schema({
   },
   distance: {
     type: Number,
-    required: true
+    required: false, // Made optional for flexibility
+    default: 0
   },
   deviceFingerprint: {
     type: String
@@ -61,7 +67,7 @@ const AttendanceRecordSchema = new Schema({
     type: Boolean,
     default: false
   }
-});
+}, { _id: false }); // Disable _id for subdocuments
 
 const StudentSchema = new Schema<IStudent>(
   {
@@ -93,6 +99,19 @@ const StudentSchema = new Schema<IStudent>(
     timestamps: true
   }
 );
+
+// Pre-save hook to ensure all attendance records have a session
+StudentSchema.pre('save', function(next) {
+  if (this.attendanceRecords && this.attendanceRecords.length > 0) {
+    this.attendanceRecords.forEach((record: any) => {
+      // Ensure session field exists and is valid
+      if (!record.session) {
+        record.session = 'session4'; // Default for old records
+      }
+    });
+  }
+  next();
+});
 
 // Index for faster queries
 StudentSchema.index({ email: 1 });

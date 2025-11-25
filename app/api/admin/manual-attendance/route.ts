@@ -58,23 +58,9 @@ export async function POST(request: NextRequest) {
       student.major = major;
     }
 
-    // Check if already marked attendance for this session on this date
-    const existingRecord = student.attendanceRecords.find((record) => {
-      const recordDate = new Date(record.date);
-      recordDate.setHours(0, 0, 0, 0);
-      return (
-        recordDate.getTime() === attendanceDate.getTime() &&
-        record.session === attendanceSession
-      );
-    });
-
-    if (existingRecord) {
-      return NextResponse.json(
-        { error: 'Attendance already marked for this session on this date' },
-        { status: 400 }
-      );
-    }
-
+    // Admin can add attendance without constraints
+    // No duplicate check - admins can override/add multiple times if needed
+    
     // Add attendance record (marked by admin, no location required)
     student.attendanceRecords.push({
       date: attendanceDate,
@@ -89,16 +75,11 @@ export async function POST(request: NextRequest) {
       addedByAdmin: true
     });
 
-    await student.save();
+    // Save with validateModifiedOnly to avoid issues with old records
+    await student.save({ validateModifiedOnly: true });
 
-    // Create IP tracking record to prevent duplicate marking
-    await IPTracking.create({
-      ipAddress: 'admin-added',
-      email: email.toLowerCase(),
-      deviceFingerprint: 'admin-added',
-      session: attendanceSession,
-      date: attendanceDate
-    });
+    // Note: No IP tracking for admin-added attendance
+    // Admins can add without constraints
 
     return NextResponse.json(
       {
