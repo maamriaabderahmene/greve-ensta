@@ -48,7 +48,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current session
+    const now = new Date();
     const currentSession = getCurrentSession();
+    console.log(`[Session Detection] Current time: ${now.toISOString()}, Detected session: ${currentSession}`);
+    
     if (!currentSession) {
       return NextResponse.json(
         { error: 'No active attendance session at this time.' },
@@ -199,13 +202,22 @@ export async function POST(request: NextRequest) {
     // CRITICAL: Check if email has already marked attendance in THIS SPECIFIC session today
     // This allows the same email to mark attendance in different sessions throughout the day
     // Query explicitly checks: same email + SAME SESSION + same day
+    
+    // First, let's check ALL records for this email today to debug
+    const allEmailRecordsToday = await IPTracking.find({
+      email: email.toLowerCase(),
+      date: { $gte: today, $lt: tomorrow }
+    }).lean();
+    
+    console.log(`[DEBUG] All IPTracking records for ${email} today:`, allEmailRecordsToday.map(r => ({ session: r.session, date: r.date })));
+    
     const existingEmailSession = await IPTracking.findOne({
       email: email.toLowerCase(),
       session: currentSession, // MUST match current session exactly - NOT other sessions
       date: { $gte: today, $lt: tomorrow }
     }).lean();
 
-    console.log(`[Email Check] Email: ${email}, Session: ${currentSession}, Found: ${!!existingEmailSession}`);
+    console.log(`[Email Check] Email: ${email}, Current Session: ${currentSession}, Found in THIS session: ${!!existingEmailSession}`);
 
     if (existingEmailSession) {
       return NextResponse.json(
