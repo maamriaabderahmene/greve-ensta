@@ -35,7 +35,7 @@ export default function HomePage() {
           {/* Student Attendance Card */}
           <Link href="/student/attendance">
             <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-8 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 cursor-pointer group">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center mb-4 group-hover:rotate-6 transition-transform">
+              <div className="w-16 h-16 bg-gradient-to-br from-light-sea-green to-strong-cyan rounded-xl flex items-center justify-center mb-4 group-hover:rotate-6 transition-transform">
                 <MapPin className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">
@@ -50,7 +50,7 @@ export default function HomePage() {
           {/* Admin Login Card */}
           <Link href="/login">
             <div className="bg-white/95 backdrop-blur-lg rounded-2xl p-8 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105 cursor-pointer group">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center mb-4 group-hover:rotate-6 transition-transform">
+              <div className="w-16 h-16 bg-gradient-to-br from-pearl-aqua to-icy-aqua rounded-xl flex items-center justify-center mb-4 group-hover:rotate-6 transition-transform">
                 <LogIn className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">

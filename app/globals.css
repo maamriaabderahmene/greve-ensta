@@ -45,15 +45,19 @@ body {
   background: #555;
 }
 
-/* Gradient backgrounds */
+/* Gradient backgrounds with new palette */
 .gradient-bg {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #07beb8 0%, #3dccc7 50%, #68d8d6 100%);
 }
 
 .gradient-bg-alt {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, #3dccc7 0%, #68d8d6 100%);
 }
 
 .gradient-bg-blue {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: linear-gradient(135deg, #9ceaef 0%, #c4fff9 100%);
+}
+
+.gradient-bg-dark {
+  background: linear-gradient(135deg, #012625 0%, #0b2a29 50%, #0d3332 100%);
 }

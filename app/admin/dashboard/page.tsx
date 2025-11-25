@@ -14,13 +14,17 @@ import {
   Loader2
 } from 'lucide-react';
 import { SPECIALTIES_CONFIG, formatDate } from '@/lib/utils';
+import { SESSION_TIMES } from '@/lib/sessionUtils';
+import type { AttendanceSession } from '@/models/Student';
 
 interface AttendanceRecord {
   date: Date;
+  session: AttendanceSession;
   location: { lat: number; lng: number };
   verified: boolean;
   distance: number;
   _id: string;
+  addedByAdmin?: boolean;
 }
 
 interface Student {
@@ -42,7 +46,24 @@ export default function AdminDashboardPage() {
     major: '',
     search: '',
     dateFrom: '',
-    dateTo: ''
+    dateTo: '',
+    session: '' as '' | AttendanceSession
+  });
+
+  // Calculate stats including unique daily attendance
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const uniqueEmailsToday = new Set<string>();
+  students.forEach(s => {
+    const hasAttendedToday = s.attendanceRecords.some(r => {
+      const recordDate = new Date(r.date);
+      recordDate.setHours(0, 0, 0, 0);
+      return recordDate.getTime() === today.getTime();
+    });
+    if (hasAttendedToday) {
+      uniqueEmailsToday.add(s.email);
+    }
   });
 
   const stats = {
@@ -53,14 +74,13 @@ export default function AdminDashboardPage() {
       0
     ),
     todayAttendance: students.reduce((sum, s) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
       return sum + s.attendanceRecords.filter(r => {
         const recordDate = new Date(r.date);
         recordDate.setHours(0, 0, 0, 0);
         return recordDate.getTime() === today.getTime();
       }).length;
-    }, 0)
+    }, 0),
+    uniqueAttendedToday: uniqueEmailsToday.size
   };
 
   useEffect(() => {
@@ -103,6 +123,16 @@ export default function AdminDashboardPage() {
         s => s.name.toLowerCase().includes(search) || 
              s.email.toLowerCase().includes(search)
       );
+    }
+
+    // Session filter
+    if (filters.session) {
+      filtered = filtered.map(student => ({
+        ...student,
+        attendanceRecords: student.attendanceRecords.filter(record => 
+          record.session === filters.session
+        )
+      }));
     }
 
     // Date range filter for attendance
@@ -184,11 +214,11 @@ export default function AdminDashboardPage() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Today's Attendance</p>
+              <p className="text-sm font-medium text-gray-600">Today's Sessions</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">{stats.todayAttendance}</p>
             </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-purple-600" />
+            <div className="w-12 h-12 bg-strong-cyan/20 rounded-lg flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-strong-cyan" />
             </div>
           </div>
         </div>
@@ -196,11 +226,12 @@ export default function AdminDashboardPage() {
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Verified Records</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.verifiedAttendance}</p>
+              <p className="text-sm font-medium text-gray-600">Unique Today</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.uniqueAttendedToday}</p>
+              <p className="text-xs text-gray-500 mt-1">Total students attended</p>
             </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-orange-600" />
+            <div className="w-12 h-12 bg-light-sea-green/20 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-light-sea-green" />
             </div>
           </div>
         </div>
@@ -210,17 +241,24 @@ export default function AdminDashboardPage() {
       <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-200">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            <Link
+              href="/admin/manual-attendance"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-light-sea-green text-white rounded-lg hover:bg-light-sea-green-600 transition-colors"
+            >
+              <Users className="w-4 h-4" />
+              Add Manual Attendance
+            </Link>
             <Link
               href="/admin/locations"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-strong-cyan text-white rounded-lg hover:bg-strong-cyan-600 transition-colors"
             >
               <MapPin className="w-4 h-4" />
               Manage Locations
             </Link>
             <button
               onClick={exportToCSV}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-pearl-aqua text-white rounded-lg hover:bg-pearl-aqua-600 transition-colors"
             >
               <Download className="w-4 h-4" />
               Export CSV
@@ -236,7 +274,7 @@ export default function AdminDashboardPage() {
           <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Search
@@ -248,19 +286,38 @@ export default function AdminDashboardPage() {
                 placeholder="Name or email..."
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-light-sea-green focus:border-transparent"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="session-filter" className="block text-sm font-medium text-gray-700 mb-2">
+              Session
+            </label>
+            <select
+              id="session-filter"
+              value={filters.session}
+              onChange={(e) => setFilters({ ...filters, session: e.target.value as any })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-light-sea-green focus:border-transparent"
+            >
+              <option value="">All Sessions</option>
+              <option value="session1">{SESSION_TIMES.session1.label}</option>
+              <option value="session2">{SESSION_TIMES.session2.label}</option>
+              <option value="session3">{SESSION_TIMES.session3.label}</option>
+              <option value="session4">{SESSION_TIMES.session4.label}</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="specialty-filter" className="block text-sm font-medium text-gray-700 mb-2">
               Specialty
             </label>
             <select
+              id="specialty-filter"
               value={filters.specialty}
               onChange={(e) => setFilters({ ...filters, specialty: e.target.value, major: '' })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-light-sea-green focus:border-transparent"
             >
               <option value="">All Specialties</option>
               <option value="MI">MI</option>
@@ -269,14 +326,15 @@ export default function AdminDashboardPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="major-filter" className="block text-sm font-medium text-gray-700 mb-2">
               Major
             </label>
             <select
+              id="major-filter"
               value={filters.major}
               onChange={(e) => setFilters({ ...filters, major: e.target.value })}
               disabled={!filters.specialty}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent disabled:opacity-50"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-light-sea-green focus:border-transparent disabled:opacity-50"
             >
               <option value="">All Majors</option>
               {availableMajors.map(major => (
@@ -286,33 +344,35 @@ export default function AdminDashboardPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="date-from" className="block text-sm font-medium text-gray-700 mb-2">
               Date From
             </label>
             <input
+              id="date-from"
               type="date"
               value={filters.dateFrom}
               onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-light-sea-green focus:border-transparent"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="date-to" className="block text-sm font-medium text-gray-700 mb-2">
               Date To
             </label>
             <input
+              id="date-to"
               type="date"
               value={filters.dateTo}
               onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-light-sea-green focus:border-transparent"
             />
           </div>
         </div>
 
         <button
-          onClick={() => setFilters({ specialty: '', major: '', search: '', dateFrom: '', dateTo: '' })}
-          className="mt-4 text-sm text-purple-600 hover:text-purple-700 font-medium"
+          onClick={() => setFilters({ specialty: '', major: '', search: '', dateFrom: '', dateTo: '', session: '' })}
+          className="mt-4 text-sm text-light-sea-green hover:text-light-sea-green-600 font-medium"
         >
           Clear All Filters
         </button>

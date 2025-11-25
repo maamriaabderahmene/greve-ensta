@@ -461,7 +461,7 @@ export default function StudentAttendancePage() {
 
         <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl p-8 animate-slide-up">
           <div className="flex items-center justify-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-light-sea-green to-strong-cyan rounded-xl flex items-center justify-center">
               <MapPin className="w-8 h-8 text-white" />
             </div>
           </div>
@@ -640,7 +640,7 @@ export default function StudentAttendancePage() {
             <button
               type="submit"
               disabled={loading || !position || !formData.specialty || !formData.major}
-              className="w-full bg-gradient-to-r from-green-600 to-teal-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-green-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-light-sea-green to-strong-cyan text-white font-semibold py-3 px-6 rounded-lg hover:from-light-sea-green-600 hover:to-strong-cyan-600 focus:outline-none focus:ring-2 focus:ring-light-sea-green focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
