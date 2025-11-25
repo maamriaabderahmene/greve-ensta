@@ -178,11 +178,11 @@ export async function POST(request: NextRequest) {
 
     // CRITICAL: Check if this device (IP + fingerprint) has already been used in THIS SPECIFIC session today
     // This allows the same device to mark attendance in different sessions
-    // Query explicitly checks: same IP + same device + SAME SESSION + same day
+    // Query explicitly checks: same IP + same device + SAME SESSION (exact match, not null) + same day
     const existingDeviceSession = await IPTracking.findOne({
       ipAddress: ip,
       deviceFingerprint: deviceFingerprint,
-      session: currentSession, // MUST match current session exactly
+      session: { $eq: currentSession }, // Use $eq to ensure EXACT match (not null/undefined)
       date: { $gte: today, $lt: tomorrow }
     }).lean();
 
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
 
     // CRITICAL: Check if email has already marked attendance in THIS SPECIFIC session today
     // This allows the same email to mark attendance in different sessions throughout the day
-    // Query explicitly checks: same email + SAME SESSION + same day
+    // Query explicitly checks: same email + SAME SESSION (exact match, not null) + same day
     
     // First, let's check ALL records for this email today to debug
     const allEmailRecordsToday = await IPTracking.find({
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     
     const existingEmailSession = await IPTracking.findOne({
       email: email.toLowerCase(),
-      session: currentSession, // MUST match current session exactly - NOT other sessions
+      session: { $eq: currentSession }, // Use $eq to ensure EXACT match (not null/undefined)
       date: { $gte: today, $lt: tomorrow }
     }).lean();
 
@@ -311,9 +311,9 @@ export async function POST(request: NextRequest) {
     const alreadyMarkedSession = student.attendanceRecords.some((record) => {
       const recordDate = new Date(record.date);
       recordDate.setHours(0, 0, 0, 0);
-      // Must match both: same day AND same session (exact match)
+      // Must match both: same day AND EXACT same session (strict equality, not null/undefined)
       const sameDay = recordDate.getTime() === todayCheck.getTime();
-      const sameSession = record.session === currentSession;
+      const sameSession = record.session === currentSession && record.session !== null && record.session !== undefined;
       
       if (sameDay && record.session) {
         console.log(`  - Record session: ${record.session}, Current: ${currentSession}, Match: ${sameSession}`);
