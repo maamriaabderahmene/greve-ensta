@@ -173,35 +173,40 @@ export async function POST(request: NextRequest) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Check if this device (IP + fingerprint) has already been used in this session today
+    // CRITICAL: Check if this device (IP + fingerprint) has already been used in THIS SPECIFIC session today
+    // This allows the same device to mark attendance in different sessions
     const existingDeviceSession = await IPTracking.findOne({
       ipAddress: ip,
       deviceFingerprint: deviceFingerprint,
-      session: currentSession,
+      session: currentSession, // MUST match current session exactly
       date: { $gte: today, $lt: tomorrow }
     });
 
     if (existingDeviceSession) {
       return NextResponse.json(
         { 
-          error: `This device has already marked attendance for this session with email: ${existingDeviceSession.email}.`,
-          usedEmail: existingDeviceSession.email
+          error: `This device has already marked attendance for ${currentSession} with email: ${existingDeviceSession.email}. You can mark attendance in other sessions.`,
+          usedEmail: existingDeviceSession.email,
+          session: currentSession
         },
         { status: 400 }
       );
     }
 
-    // Check if email has already marked attendance in this session today
+    // CRITICAL: Check if email has already marked attendance in THIS SPECIFIC session today
+    // This allows the same email to mark attendance in different sessions throughout the day
     const existingEmailSession = await IPTracking.findOne({
       email: email.toLowerCase(),
-      session: currentSession,
+      session: currentSession, // MUST match current session exactly
       date: { $gte: today, $lt: tomorrow }
     });
 
     if (existingEmailSession) {
       return NextResponse.json(
         { 
-          error: `This email has already marked attendance for this session.`
+          error: `You have already marked attendance for ${currentSession} today. You can mark attendance in other sessions.`,
+          session: currentSession,
+          markedAt: existingEmailSession.createdAt
         },
         { status: 400 }
       );
@@ -271,19 +276,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if student already marked attendance in this session today
+    // Check if student already marked attendance in this specific session today
     const todayCheck = new Date();
     todayCheck.setHours(0, 0, 0, 0);
     
     const alreadyMarkedSession = student.attendanceRecords.some((record) => {
       const recordDate = new Date(record.date);
       recordDate.setHours(0, 0, 0, 0);
-      return recordDate.getTime() === todayCheck.getTime() && record.session === currentSession;
+      // Must match both: same day AND same session
+      const sameDay = recordDate.getTime() === todayCheck.getTime();
+      const sameSession = record.session === currentSession;
+      return sameDay && sameSession;
     });
 
     if (alreadyMarkedSession) {
       return NextResponse.json(
-        { error: 'You have already marked attendance for this session today' },
+        { 
+          error: `You have already marked attendance for ${currentSession} today. You can still mark attendance in other sessions.`,
+          session: currentSession
+        },
         { status: 400 }
       );
     }
