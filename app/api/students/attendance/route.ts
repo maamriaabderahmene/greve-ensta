@@ -175,12 +175,15 @@ export async function POST(request: NextRequest) {
 
     // CRITICAL: Check if this device (IP + fingerprint) has already been used in THIS SPECIFIC session today
     // This allows the same device to mark attendance in different sessions
+    // Query explicitly checks: same IP + same device + SAME SESSION + same day
     const existingDeviceSession = await IPTracking.findOne({
       ipAddress: ip,
       deviceFingerprint: deviceFingerprint,
       session: currentSession, // MUST match current session exactly
       date: { $gte: today, $lt: tomorrow }
-    });
+    }).lean();
+
+    console.log(`[Device Check] IP: ${ip}, Device: ${deviceFingerprint.substring(0, 10)}..., Session: ${currentSession}, Found: ${!!existingDeviceSession}`);
 
     if (existingDeviceSession) {
       return NextResponse.json(
@@ -195,11 +198,14 @@ export async function POST(request: NextRequest) {
 
     // CRITICAL: Check if email has already marked attendance in THIS SPECIFIC session today
     // This allows the same email to mark attendance in different sessions throughout the day
+    // Query explicitly checks: same email + SAME SESSION + same day
     const existingEmailSession = await IPTracking.findOne({
       email: email.toLowerCase(),
-      session: currentSession, // MUST match current session exactly
+      session: currentSession, // MUST match current session exactly - NOT other sessions
       date: { $gte: today, $lt: tomorrow }
-    });
+    }).lean();
+
+    console.log(`[Email Check] Email: ${email}, Session: ${currentSession}, Found: ${!!existingEmailSession}`);
 
     if (existingEmailSession) {
       return NextResponse.json(
@@ -280,14 +286,31 @@ export async function POST(request: NextRequest) {
     const todayCheck = new Date();
     todayCheck.setHours(0, 0, 0, 0);
     
+    // Log today's attendance records for debugging
+    const todayRecords = student.attendanceRecords.filter(record => {
+      const recordDate = new Date(record.date);
+      recordDate.setHours(0, 0, 0, 0);
+      return recordDate.getTime() === todayCheck.getTime();
+    });
+    
+    console.log(`[Student Record Check] Email: ${email}, Current Session: ${currentSession}`);
+    console.log(`[Today's Records] Count: ${todayRecords.length}`, todayRecords.map(r => ({ session: r.session, date: r.date })));
+    
     const alreadyMarkedSession = student.attendanceRecords.some((record) => {
       const recordDate = new Date(record.date);
       recordDate.setHours(0, 0, 0, 0);
-      // Must match both: same day AND same session
+      // Must match both: same day AND same session (exact match)
       const sameDay = recordDate.getTime() === todayCheck.getTime();
       const sameSession = record.session === currentSession;
+      
+      if (sameDay && record.session) {
+        console.log(`  - Record session: ${record.session}, Current: ${currentSession}, Match: ${sameSession}`);
+      }
+      
       return sameDay && sameSession;
     });
+
+    console.log(`[Already Marked?] ${alreadyMarkedSession}`);
 
     if (alreadyMarkedSession) {
       return NextResponse.json(
