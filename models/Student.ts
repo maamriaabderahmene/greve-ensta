@@ -1,10 +1,10 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
-export type AttendanceSession = 'session1' | 'session2' | 'session3' | 'session4';
+export type AttendanceSession = 'session0' | 'session1' | 'session2' | 'session3' | 'session4';
 
 export interface IAttendanceRecord {
   date: Date;
-  session: AttendanceSession; // session1: 8:00-9:30, session2: 9:30-11:00, session3: 11:00-12:30, session4: 12:30+
+  session: AttendanceSession; // session0: 12:00AM-8:00AM, session1: 8:00-9:30, session2: 9:30-11:00, session3: 11:00-12:30, session4: 12:30+
   location: {
     lat: number;
     lng: number;
@@ -32,7 +32,7 @@ const AttendanceRecordSchema = new Schema({
   },
   session: {
     type: String,
-    enum: ['session1', 'session2', 'session3', 'session4'],
+    enum: ['session0', 'session1', 'session2', 'session3', 'session4'],
     required: true
   },
   location: {

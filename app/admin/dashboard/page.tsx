@@ -16,6 +16,7 @@ import {
 import { SPECIALTIES_CONFIG, formatDate } from '@/lib/utils';
 import { SESSION_TIMES } from '@/lib/sessionUtils';
 import type { AttendanceSession } from '@/models/Student';
+import SessionControlPanel from '@/components/SessionControlPanel';
 
 interface AttendanceRecord {
   date: Date;
@@ -267,6 +268,9 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* Session Control Panel */}
+      <SessionControlPanel />
+
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-200">
         <div className="flex items-center gap-2 mb-4">
@@ -302,6 +306,7 @@ export default function AdminDashboardPage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-light-sea-green focus:border-transparent"
             >
               <option value="">All Sessions</option>
+              <option value="session0">{SESSION_TIMES.session0.label}</option>
               <option value="session1">{SESSION_TIMES.session1.label}</option>
               <option value="session2">{SESSION_TIMES.session2.label}</option>
               <option value="session3">{SESSION_TIMES.session3.label}</option>

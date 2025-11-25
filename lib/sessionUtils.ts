@@ -2,6 +2,7 @@ import { AttendanceSession } from '@/models/Student';
 
 // Session time ranges (24-hour format)
 export const SESSION_TIMES = {
+  session0: { start: 0, end: 8, label: '12:00 AM - 8:00 AM' },
   session1: { start: 8, end: 9.5, label: '8:00 AM - 9:30 AM' },
   session2: { start: 9.5, end: 11, label: '9:30 AM - 11:00 AM' },
   session3: { start: 11, end: 12.5, label: '11:00 AM - 12:30 PM' },
@@ -17,7 +18,9 @@ export function getCurrentSession(): AttendanceSession | null {
   const minutes = now.getMinutes();
   const currentTime = hours + minutes / 60;
 
-  if (currentTime >= SESSION_TIMES.session1.start && currentTime < SESSION_TIMES.session1.end) {
+  if (currentTime >= SESSION_TIMES.session0.start && currentTime < SESSION_TIMES.session0.end) {
+    return 'session0';
+  } else if (currentTime >= SESSION_TIMES.session1.start && currentTime < SESSION_TIMES.session1.end) {
     return 'session1';
   } else if (currentTime >= SESSION_TIMES.session2.start && currentTime < SESSION_TIMES.session2.end) {
     return 'session2';

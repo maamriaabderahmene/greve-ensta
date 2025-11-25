@@ -120,8 +120,9 @@ export default function ManualAttendancePage() {
                 required
                 value={formData.session}
                 onChange={(e) => setFormData({ ...formData, session: e.target.value as any })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-light-sea-green focus:border-transparent transition-all"
               >
+                <option value="session0">{SESSION_TIMES.session0.label}</option>
                 <option value="session1">{SESSION_TIMES.session1.label}</option>
                 <option value="session2">{SESSION_TIMES.session2.label}</option>
                 <option value="session3">{SESSION_TIMES.session3.label}</option>

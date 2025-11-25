@@ -4,6 +4,7 @@ import Student from '@/models/Student';
 import AttendanceLocation from '@/models/AttendanceLocation';
 import IPTracking from '@/models/IPTracking';
 import IPRegistration from '@/models/IPRegistration';
+import SessionControl from '@/models/SessionControl';
 import { calculateDistance } from '@/lib/utils';
 import { getCurrentSession, isWithinAttendanceHours } from '@/lib/sessionUtils';
 
@@ -52,6 +53,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'No active attendance session at this time.' },
         { status: 400 }
+      );
+    }
+
+    // Check if session is enabled by admin
+    const sessionControl = await SessionControl.findOne({ session: currentSession });
+    if (sessionControl && !sessionControl.isEnabled) {
+      return NextResponse.json(
+        { error: 'Attendance marking is currently disabled for this session by the administrator.' },
+        { status: 403 }
       );
     }
 

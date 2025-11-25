@@ -4,7 +4,7 @@ export interface IIPTracking extends Document {
   ipAddress: string;
   email: string;
   deviceFingerprint: string;
-  session: string; // session1, session2, session3, session4
+  session: string; // session0, session1, session2, session3, session4
   date: Date;
   createdAt: Date;
 }
@@ -30,7 +30,7 @@ const IPTrackingSchema = new Schema<IIPTracking>(
     session: {
       type: String,
       required: true,
-      enum: ['session1', 'session2', 'session3', 'session4']
+      enum: ['session0', 'session1', 'session2', 'session3', 'session4']
     },
     date: {
       type: Date,

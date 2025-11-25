@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate session
-    const validSessions: AttendanceSession[] = ['session1', 'session2', 'session3', 'session4'];
+    const validSessions: AttendanceSession[] = ['session0', 'session1', 'session2', 'session3', 'session4'];
     if (!validSessions.includes(attendanceSession as AttendanceSession)) {
       return NextResponse.json(
         { error: 'Invalid attendance session' },
