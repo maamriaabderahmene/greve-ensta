@@ -33,7 +33,8 @@ const AttendanceRecordSchema = new Schema({
   session: {
     type: String,
     enum: ['session0', 'session1', 'session2', 'session3', 'session4'],
-    required: true
+    required: false, // Changed to false for backward compatibility with old records
+    default: 'session4' // Default to session4 for old records without session
   },
   location: {
     lat: {

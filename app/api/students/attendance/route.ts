@@ -302,7 +302,9 @@ export async function POST(request: NextRequest) {
       addedByAdmin: false
     });
 
-    await student.save();
+    // Save without validating old records (for backward compatibility)
+    // Only the new record we just pushed will be validated
+    await student.save({ validateModifiedOnly: true });
 
     // Track IP + Device + Email + Session for today
     await IPTracking.create({
