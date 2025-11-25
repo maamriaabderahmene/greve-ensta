@@ -21,6 +21,7 @@ import { useToast } from '@/components/ToastProvider';
 import { SPECIALTIES_CONFIG } from '@/lib/utils';
 import { detectPrivateBrowsing } from '@/lib/aggressivePrivateDetection';
 import { canDetectIP, getClientIP } from '@/lib/privateDetection';
+import { getCurrentSession, getSessionLabel, isWithinAttendanceHours, generateDeviceFingerprint, detectVPN } from '@/lib/sessionUtils';
 
 export default function StudentAttendancePage() {
   const { showToast } = useToast();
@@ -39,6 +40,9 @@ export default function StudentAttendancePage() {
   const [ipVerified, setIpVerified] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
   const [clientIP, setClientIP] = useState<string | null>(null);
+  const [deviceFingerprint, setDeviceFingerprint] = useState<string | null>(null);
+  const [isVPN, setIsVPN] = useState<boolean>(false);
+  const [currentSession, setCurrentSession] = useState<any>(null);
 
   const availableMajors = formData.specialty 
     ? SPECIALTIES_CONFIG[formData.specialty].majors 
@@ -48,6 +52,23 @@ export default function StudentAttendancePage() {
     // Check private browsing and IP verification
     const checkBrowserAndIP = async () => {
       setChecking(true);
+
+      // Check if within attendance hours
+      if (!isWithinAttendanceHours()) {
+        showToast('error', 'Attendance can only be marked during authorized hours (8:00 AM - End of Day).');
+        setChecking(false);
+        return;
+      }
+
+      // Get current session
+      const session = getCurrentSession();
+      if (!session) {
+        showToast('error', 'No active attendance session at this time.');
+        setChecking(false);
+        return;
+      }
+      setCurrentSession(session);
+      console.log('Current session:', session, getSessionLabel(session));
 
       console.log('Starting AGGRESSIVE private browsing detection...');
 
@@ -61,6 +82,22 @@ export default function StudentAttendancePage() {
         setChecking(false);
         return;
       }
+
+      // Check for VPN
+      console.log('Checking for VPN usage...');
+      const vpnDetected = await detectVPN();
+      setIsVPN(vpnDetected);
+      if (vpnDetected) {
+        showToast('error', 'VPN usage detected! Please disable your VPN to mark attendance.');
+        setChecking(false);
+        return;
+      }
+      console.log('VPN check passed ✅');
+
+      // Generate device fingerprint
+      const fingerprint = generateDeviceFingerprint();
+      setDeviceFingerprint(fingerprint);
+      console.log('Device fingerprint generated ✅');
 
       // Additional server-side check
       try {
@@ -173,6 +210,8 @@ export default function StudentAttendancePage() {
       return;
     }
 
+    // iOS Safari requires a direct user interaction to trigger location prompt
+    // This must be called from a user-initiated event (like button click)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setPosition({
@@ -184,13 +223,24 @@ export default function StudentAttendancePage() {
         showToast('success', 'Location captured successfully!');
       },
       (err) => {
-        showToast('error', `Location error: ${err.message}. Please enable location access.`);
+        console.error('Geolocation error:', err);
+        let errorMessage = 'Please enable location access in your browser settings.';
+        
+        if (err.code === err.PERMISSION_DENIED) {
+          errorMessage = 'Location access denied. Please enable location in Settings > Safari > Location Services.';
+        } else if (err.code === err.TIMEOUT) {
+          errorMessage = 'Location request timed out. Please try again.';
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          errorMessage = 'Location information unavailable. Please check your device settings.';
+        }
+        
+        showToast('error', errorMessage);
         setLocationPermission('denied');
         setLocationLoading(false);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0
       }
     );
@@ -223,6 +273,13 @@ export default function StudentAttendancePage() {
     setLoading(true);
 
     try {
+      // Re-check VPN before submission
+      const vpnCheck = await detectVPN();
+      if (vpnCheck) {
+        showToast('error', 'VPN usage detected! Please disable your VPN to mark attendance.');
+        return;
+      }
+
       // Create browser fingerprint
       const browserFingerprint = {
         isPrivate: isPrivateNow,
@@ -244,7 +301,9 @@ export default function StudentAttendancePage() {
           major: formData.major,
           latitude: position.lat,
           longitude: position.lng,
-          browserFingerprint: browserFingerprint
+          browserFingerprint: browserFingerprint,
+          deviceFingerprint: deviceFingerprint,
+          isVPN: vpnCheck
         })
       });
 
@@ -413,6 +472,19 @@ export default function StudentAttendancePage() {
           <p className="text-center text-gray-600 mb-8">
             Enter your details and share your location
           </p>
+
+          {/* Session Info */}
+          {currentSession && (
+            <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-purple-600" />
+                <div>
+                  <p className="text-sm font-medium text-gray-800">Current Session</p>
+                  <p className="text-xs text-gray-600">{getSessionLabel(currentSession)}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Location Permission Status */}
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">

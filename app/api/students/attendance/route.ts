@@ -5,18 +5,52 @@ import AttendanceLocation from '@/models/AttendanceLocation';
 import IPTracking from '@/models/IPTracking';
 import IPRegistration from '@/models/IPRegistration';
 import { calculateDistance } from '@/lib/utils';
+import { getCurrentSession, isWithinAttendanceHours } from '@/lib/sessionUtils';
 
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
     const body = await request.json();
     
-    const { name, email, specialty, major, latitude, longitude, browserFingerprint } = body;
+    const { name, email, specialty, major, latitude, longitude, browserFingerprint, deviceFingerprint, isVPN } = body;
 
     // Validation
     if (!name || !email || !specialty || !major || !latitude || !longitude) {
       return NextResponse.json(
         { error: 'All fields are required: name, email, specialty, major, and location' },
+        { status: 400 }
+      );
+    }
+
+    // Check if VPN is detected
+    if (isVPN === true) {
+      return NextResponse.json(
+        { error: 'VPN usage detected. Please disable your VPN to mark attendance.' },
+        { status: 403 }
+      );
+    }
+
+    // Check device fingerprint
+    if (!deviceFingerprint) {
+      return NextResponse.json(
+        { error: 'Device fingerprint required. Please refresh the page.' },
+        { status: 400 }
+      );
+    }
+
+    // Check if within attendance hours
+    if (!isWithinAttendanceHours()) {
+      return NextResponse.json(
+        { error: 'Attendance can only be marked during authorized hours (8:00 AM - End of Day).' },
+        { status: 400 }
+      );
+    }
+
+    // Get current session
+    const currentSession = getCurrentSession();
+    if (!currentSession) {
+      return NextResponse.json(
+        { error: 'No active attendance session at this time.' },
         { status: 400 }
       );
     }
@@ -107,38 +141,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // CRITICAL CHECK: One IP can only mark attendance ONCE per day (regardless of email)
+    // CRITICAL CHECK: Device (IP + Fingerprint) can only mark attendance ONCE per session
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Check if this IP has already been used for ANY attendance today
-    const existingIPToday = await IPTracking.findOne({
+    // Check if this device (IP + fingerprint) has already been used in this session today
+    const existingDeviceSession = await IPTracking.findOne({
       ipAddress: ip,
+      deviceFingerprint: deviceFingerprint,
+      session: currentSession,
       date: { $gte: today, $lt: tomorrow }
     });
 
-    if (existingIPToday) {
+    if (existingDeviceSession) {
       return NextResponse.json(
         { 
-          error: `This device has already marked attendance today with email: ${existingIPToday.email}. One device can only mark attendance once per day.`,
-          usedEmail: existingIPToday.email
+          error: `This device has already marked attendance for this session with email: ${existingDeviceSession.email}.`,
+          usedEmail: existingDeviceSession.email
         },
         { status: 400 }
       );
     }
 
-    // Additional check: Verify email hasn't been used from different IP today
-    const existingEmailToday = await IPTracking.findOne({
+    // Check if email has already marked attendance in this session today
+    const existingEmailSession = await IPTracking.findOne({
       email: email.toLowerCase(),
+      session: currentSession,
       date: { $gte: today, $lt: tomorrow }
     });
 
-    if (existingEmailToday && existingEmailToday.ipAddress !== ip) {
+    if (existingEmailSession) {
       return NextResponse.json(
         { 
-          error: `This email has already marked attendance today from a different device.`
+          error: `This email has already marked attendance for this session.`
         },
         { status: 400 }
       );
@@ -208,40 +245,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if student already marked attendance today
+    // Check if student already marked attendance in this session today
     const todayCheck = new Date();
     todayCheck.setHours(0, 0, 0, 0);
     
-    const alreadyMarked = student.attendanceRecords.some((record) => {
+    const alreadyMarkedSession = student.attendanceRecords.some((record) => {
       const recordDate = new Date(record.date);
       recordDate.setHours(0, 0, 0, 0);
-      return recordDate.getTime() === todayCheck.getTime();
+      return recordDate.getTime() === todayCheck.getTime() && record.session === currentSession;
     });
 
-    if (alreadyMarked) {
+    if (alreadyMarkedSession) {
       return NextResponse.json(
-        { error: 'You have already marked attendance today' },
+        { error: 'You have already marked attendance for this session today' },
         { status: 400 }
       );
     }
 
-    // Add attendance record
+    // Add attendance record with session info
     student.attendanceRecords.push({
       date: new Date(),
+      session: currentSession,
       location: {
         lat: latitude,
         lng: longitude
       },
       verified: true,
-      distance: Math.round(minDistance)
+      distance: Math.round(minDistance),
+      deviceFingerprint: deviceFingerprint,
+      addedByAdmin: false
     });
 
     await student.save();
 
-    // Track IP + Email for today
+    // Track IP + Device + Email + Session for today
     await IPTracking.create({
       ipAddress: ip,
       email: email.toLowerCase(),
+      deviceFingerprint: deviceFingerprint,
+      session: currentSession,
       date: today
     });
 
