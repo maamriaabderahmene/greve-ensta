@@ -178,11 +178,11 @@ export async function POST(request: NextRequest) {
 
     // CRITICAL: Check if this device (IP + fingerprint) has already been used in THIS SPECIFIC session today
     // This allows the same device to mark attendance in different sessions
-    // Query explicitly checks: same IP + same device + SAME SESSION (exact match, not null) + same day
+    // Query explicitly checks: same IP + same device + SAME SESSION (exact match, not null/undefined) + same day
     const existingDeviceSession = await IPTracking.findOne({
       ipAddress: ip,
       deviceFingerprint: deviceFingerprint,
-      session: { $eq: currentSession }, // Use $eq to ensure EXACT match (not null/undefined)
+      session: currentSession, // Exact match for this session only
       date: { $gte: today, $lt: tomorrow }
     }).lean();
 
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     
     const existingEmailSession = await IPTracking.findOne({
       email: email.toLowerCase(),
-      session: { $eq: currentSession }, // Use $eq to ensure EXACT match (not null/undefined)
+      session: currentSession, // Exact match for this session only
       date: { $gte: today, $lt: tomorrow }
     }).lean();
 
